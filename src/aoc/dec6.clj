@@ -1,48 +1,47 @@
 (ns aoc.dec6
   (:require [aoc.utils :as utils]
-            [clojure.string :as str])
-  (:import (java.util ArrayList)))
+            [clojure.string :as str]))
 
 (defn input []
-  (ArrayList.
-    (mapv #(Integer/parseInt %)
-          (-> (utils/day-file 6)
-              (first)
-              (str/split #",")))))
+  (mapv #(Integer/parseInt %)
+        (-> (utils/day-file 6)
+            (first)
+            (str/split #","))))
 
 (defn generation [cur]
-  (let [size (.size cur)
-        to-append (ArrayList.)]
-    (loop [n 0]
-      (if (= n size)
-        (do
-          (.addAll cur to-append)
-          cur)
-        (let [fish (.get cur n)]
-          (if (zero? fish)
-            (do
-              (.set cur n 6)
-              (.add to-append 8))
-            (.set cur n (dec fish)))
-          (recur (inc n)))))))
+  (->> (reduce
+         (fn [next-gen fish]
+           (if (zero? fish)
+             (-> next-gen
+                 (update 0 conj 6)
+                 (update 1 conj 8))
+             (update next-gen 0 conj (dec fish))))
+         [[] []]
+         cur)
+       (apply into)))
+
+(defn generation2 [cur]
+  (let [zero (get cur 0 0)
+        result (->> (for [[fish n] cur
+                          :when (pos? fish)]
+                      [(dec fish) n])
+                    (into {}))]
+    (-> result
+        (update 6 (fnil + 0) zero)
+        (update 8 (fnil + 0) zero))))
 
 (defn part1 []
-  (let [data (input)]
+  (let [data (frequencies (input))]
     (loop [cur data
            n 0]
       (if (= n 80)
-        (count cur)
-        (do
-          (generation cur)
-          (recur cur (inc n)))))))
+        cur
+        (recur (generation2 cur) (inc n))))))
 
 (defn part2 []
-  (let [data (input)]
+  (let [data (frequencies (input))]
     (loop [cur data
            n 0]
-      (println n)
       (if (= n 256)
-        (count cur)
-        (do
-          (generation cur)
-          (recur cur (inc n)))))))
+        cur
+        (recur (generation2 cur) (inc n))))))
