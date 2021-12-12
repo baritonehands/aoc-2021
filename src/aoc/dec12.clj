@@ -6,6 +6,7 @@
 (defn input []
   (->> (utils/day-file 12)
        ;(str/split-lines "start-A\nstart-b\nA-c\nA-b\nb-d\nA-end\nb-end")
+       ;(str/split-lines "fs-end\nhe-DX\nfs-he\nstart-DX\npj-DX\nend-zg\nzg-sl\nzg-pj\npj-he\nRW-he\nfs-DX\npj-RW\nzg-RW\nstart-pj\nhe-WI\nzg-he\npj-fs\nstart-RW")
        (mapv #(str/split % #"-"))))
 
 (def terminal #{"start" "end"})
@@ -14,8 +15,9 @@
   (reduce
     (fn [graph [from to]]
       (cond-> graph
-          true (update (keyword from) (fnil conj #{}) (keyword to))
-          (not= from "start") (update (keyword to) (fnil conj #{}) (keyword from))))
+          (not= from "end") (update (keyword from) (fnil conj #{}) (keyword to))
+          (and (not= from "start")
+               (not= to "end")) (update (keyword to) (fnil conj #{}) (keyword from))))
     {}
     data))
 
@@ -30,10 +32,10 @@
     (let [freqs (->> path
                      (filter small?)
                      (frequencies)
-                     (vals))
-          gt (filter #(>= % small-cnt) freqs)]
-      (or (empty? gt)
-          (= gt [small-cnt])))))
+                     (vals)
+                     (filterv #(>= % small-cnt)))]
+      (or (empty? freqs)
+          (= freqs [small-cnt])))))
 
 
 (defn remove-invalid [opts path small-cnt]
@@ -51,11 +53,11 @@
     (if (empty? incomplete)
       paths
       (let [next-paths (for [path incomplete
-                             opt (-> (get graph (last path))
+                             opt (-> (get graph (peek path))
                                      (remove-invalid path small-cnt))]
                          (conj path opt))]
-        (recur (remove #(= (last %) :end) next-paths)
-               (set/union paths (set (filter #(= (last %) :end) next-paths))))))))
+        (recur (remove #(= (peek %) :end) next-paths)
+               (set/union paths (set (filter #(= (peek %) :end) next-paths))))))))
 
 (defn part1 []
   (let [data (create-graph (input))]
