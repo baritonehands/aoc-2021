@@ -16,8 +16,7 @@
     (fn [graph [from to]]
       (cond-> graph
           (not= from "end") (update (keyword from) (fnil conj #{}) (keyword to))
-          (and (not= from "start")
-               (not= to "end")) (update (keyword to) (fnil conj #{}) (keyword from))))
+          (not= from "start") (update (keyword to) (fnil conj #{}) (keyword from))))
     {}
     data))
 
