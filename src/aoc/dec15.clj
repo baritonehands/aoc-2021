@@ -1,5 +1,6 @@
 (ns aoc.dec15
-  (:require [aoc.utils :as utils])
+  (:require [aoc.utils :as utils]
+            [clojure.string :as str])
   (:import (java.util PriorityQueue Comparator HashMap)
            (java.util.function ToLongFunction)))
 
@@ -80,11 +81,28 @@
          (map #(get-in data (reverse %)))
          (reduce +))))
 
-(defn expand-data [data])
+(defn add-wrap [a b]
+  (let [sum (+ a b)]
+    (if (> sum 9)
+      (- sum 9)
+      sum)))
+
+(defn expand-y [xdata]
+  (vec (for [my (range 0 5)
+             row xdata]
+         (vec (for [col row]
+                (add-wrap col my))))))
+
+(defn expand-x [data]
+  (vec (for [row data]
+         (vec (for [mx (range 0 5)
+                    col row]
+                (add-wrap col mx))))))
 
 (defn part2 []
-  (let [data (input)
-
+  (let [data (-> (input)
+                 (expand-x)
+                 (expand-y))
         xmax (dec (count (first data)))
         ymax (dec (count data))]
     (->> (safest-path data [0 0] [xmax ymax])
