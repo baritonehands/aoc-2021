@@ -19,6 +19,9 @@
 (defn v- [[lx ly lz] [rx ry rz]]
   [(- lx rx) (- ly ry) (- lz rz)])
 
+(defn v+ [[lx ly lz] [rx ry rz]]
+  [(+ lx rx) (+ ly ry) (+ lz rz)])
+
 (def z-rotations
   [(juxt z x y)
    (juxt z y (comp - x))
@@ -27,7 +30,7 @@
    (juxt (comp - z) (comp - x) y)
    (juxt (comp - z) y x)
    (juxt (comp - z) x (comp - y))
-   (juxt (comp - z) (comp - x) (comp - y))])
+   (juxt (comp - z) (comp - y) (comp - x))])
 
 (def y-rotations
   [(juxt y x (comp - z))
@@ -73,36 +76,32 @@
        (filter #(>= (second %) 12))
        (ffirst)))
 
-(defn unique-beacons [data overlaps]
-  (println (first overlaps))
-  (->> (for [[lr [pos orientation]] overlaps
-             :let [[lhs rhs] (map data lr)
-                   tx (get orientations orientation)]]
-         (for [l-beacon lhs
-               r-beacon (map tx rhs)
-               :when (= r-beacon (v- l-beacon pos))]
-           l-beacon))
-       (mapcat identity)
-       (distinct)))
-
-(defn overlap->path [overlaps]
-  (let [all (->> (keys overlaps)
-                 (mapcat identity)
-                 (set))]
-    all))
-
+(defn resolve-scanners [data]
+  (loop [resolved [[(first data) [0 0 0]]]
+         unresolved (set (drop 1 data))]
+    (println (count resolved) (count unresolved))
+    (if (empty? unresolved)
+      resolved
+      (let [to-resolve (for [[lhs lpos] resolved
+                             rhs unresolved
+                             :let [overlap (find-overlap lhs rhs)]
+                             :when overlap]
+                         (let [[rpos [axis orientation]] overlap
+                               rotate (get (get axes axis) orientation)]
+                           [(mapv rotate rhs)
+                            (v+ lpos rpos)
+                            rhs]))
+            pairs (map (juxt first second) to-resolve)
+            to-remove (set (map peek to-resolve))]
+        (if (empty? pairs)
+          resolved
+          (recur (into resolved pairs) (set/difference unresolved to-remove)))))))
 
 (defn part1 []
   (let [data (input)
-        overlaps (->> (for [[l-idx lhs] (map-indexed vector data)
-                            [r-idx rhs] (map-indexed vector data)
-                            :when (not= r-idx l-idx)
-                            :let [overlap (find-overlap lhs rhs)]]
-                        [[l-idx r-idx] overlap])
-                      (remove (comp nil? second second))
-                      (into {}))]
-    overlaps))
-    ;(unique-beacons data overlaps)))
-
-
-
+        resolved (resolve-scanners data)]
+    (->> (for [[scanner pos] resolved
+               coord scanner]
+           (v+ coord pos))
+         (distinct)
+         (count))))
