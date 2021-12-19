@@ -105,3 +105,18 @@
            (v+ coord pos))
          (distinct)
          (count))))
+
+(defn ny-distance [[x y z] [cx cy cz]]
+  (+ (Math/abs ^long (- cy y))
+     (Math/abs ^long (- cx x))
+     (Math/abs ^long (- cz z))))
+
+(defn part2 [resolved]
+  (let [scanners (mapv second resolved)]
+    (->> (for [[l-idx lpos] (map-indexed vector scanners)
+               [r-idx rpos] (map-indexed vector scanners)
+               :when (> r-idx l-idx)]
+           (ny-distance lpos rpos))
+         (reduce max))))
+
+
