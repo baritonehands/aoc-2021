@@ -27,13 +27,13 @@
    (if (= level 4)
      (into results [[(conj path 0) l] [(conj path 1) r]])
      (let [next-l (if (vector? l)
-                    (find-paths {:level (inc level)
-                                 :path  (conj path 0)
+                    (find-paths {:level   (inc level)
+                                 :path    (conj path 0)
                                  :results []} l)
                     [[(conj path 0) l]])
            next-r (if (vector? r)
-                    (find-paths {:level (inc level)
-                                 :path  (conj path 1)
+                    (find-paths {:level   (inc level)
+                                 :path    (conj path 1)
                                  :results []} r)
                     [[(conj path 1) l]])]
        (into results (concat next-l next-r))))))
@@ -56,6 +56,22 @@
                 (let [next-path (update path (dec (count path)) #(if (= % 0) 1 0))]
                   (println "dir change" next-path)
                   (recur next-path)))))))
+
+(defn find-number2
+  ([xs target-path] (find-number2 xs target-path))
+  ([{:keys [level path]} [l r :as xs] target-path]
+   (if (= level 4)
+     [l r]
+     (let [[node & more] (tree-seq sequential? seq xs)]))))
+
+(defn tree-seq-depth
+  [branch? children root]
+  (let [walk (fn walk [depth node]
+               (lazy-seq
+                 (cons {:depth depth :node node}
+                       (when (branch? node)
+                         (mapcat (partial walk (inc depth)) (children node))))))]
+    (walk 0 root)))
 
 (defn explode [xs path]
   (let [[l r] (get-in xs path)
