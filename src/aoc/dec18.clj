@@ -5,65 +5,6 @@
 (defn input []
   (utils/day-file 18))
 
-(defn find-explosion
-  ([xs] (find-explosion {:level 0
-                         :path  []} xs))
-  ([{:keys [level path]} [l r :as pair]]
-   (if (= level 4)
-     path
-     (if-let [l-result (and (vector? l)
-                            (find-explosion {:level (inc level)
-                                             :path  (conj path 0)} l))]
-       l-result
-       (and (vector? r)
-            (find-explosion {:level (inc level)
-                             :path  (conj path 1)} r))))))
-
-(defn find-paths
-  ([xs] (find-paths {:level   0
-                     :path    []
-                     :results []} xs))
-  ([{:keys [level path results] :as state} [l r :as pair]]
-   (if (= level 4)
-     (into results [[(conj path 0) l] [(conj path 1) r]])
-     (let [next-l (if (vector? l)
-                    (find-paths {:level   (inc level)
-                                 :path    (conj path 0)
-                                 :results []} l)
-                    [[(conj path 0) l]])
-           next-r (if (vector? r)
-                    (find-paths {:level   (inc level)
-                                 :path    (conj path 1)
-                                 :results []} r)
-                    [[(conj path 1) l]])]
-       (into results (concat next-l next-r))))))
-
-(defn find-number [xs path dir]
-  (loop [path (pop path)]
-    (println "find-number" path dir)
-    (let [possible (get-in xs path)]
-      (println "possible" possible)
-      (cond
-        (number? (get possible dir)) (conj path dir)
-        :else (cond
-                (nil? (peek path))
-                nil
-
-                (= (peek path) dir)
-                (recur (pop path))
-
-                :else
-                (let [next-path (update path (dec (count path)) #(if (= % 0) 1 0))]
-                  (println "dir change" next-path)
-                  (recur next-path)))))))
-
-(defn find-number2
-  ([xs target-path] (find-number2 xs target-path))
-  ([{:keys [level path]} [l r :as xs] target-path]
-   (if (= level 4)
-     [l r]
-     (let [[node & more] (tree-seq sequential? seq xs)]))))
-
 (defn tree-seq-depth
   [branch? children root]
   (let [walk (fn walk [depth path node]
@@ -109,24 +50,6 @@
                              r (long (Math/ceil (/ node 2)))]
                          [l r])))
     xs))
-
-
-(defn reduce+
-  ([xs] (reduce+ {:level 0
-                  :path  []} xs))
-  ([{:keys [level path explode split] :as state} [l r]]
-   (if (or explode split)
-     [l r]
-     (let [next-l (if (vector? l)
-                    (reduce+ {:level (inc level)
-                              :path  (conj path 0)} l)
-                    l)
-           next-r (if (vector? r)
-                    (reduce+ {:level (inc level)
-                              :path  (conj path 1)} r)
-                    r)]
-       (println state [next-l next-r])
-       [next-l next-r]))))
 
 
 (defn add [l r]
