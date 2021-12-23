@@ -83,19 +83,21 @@
 (defn explode [xs]
   (let [[lhs rhs] (->> (tree-seq-depth sequential? seq xs)
                        (split-with (fn [{:keys [depth node]}]
-                                     (or (not= depth 4) (number? node)))))
-        {path  :path
-         [l r] :node} (-> rhs first)
-        l-path (->> lhs
-                    reverse
-                    number-path)
-        r-path (->> (rest rhs)
-                    (drop-while #(> (:depth %) 4))
-                    number-path)]
-    (cond-> xs
-            path (assoc-in path 0)
-            (some? l-path) (update-in l-path #(+ % l))
-            (some? r-path) (update-in r-path #(+ % r)))))
+                                     (or (not= depth 4) (number? node)))))]
+    (if (first rhs)
+      (let [{path  :path
+             [l r] :node} (-> rhs first)
+            l-path (->> lhs
+                        reverse
+                        number-path)
+            r-path (->> (rest rhs)
+                        (drop-while #(> (:depth %) 4))
+                        number-path)]
+           (cond-> xs
+                   path (assoc-in path 0)
+                   (some? l-path) (update-in l-path #(+ % l))
+                   (some? r-path) (update-in r-path #(+ % r))))
+      xs)))
 
 (defn split [xs]
   (if-let [{:keys [path node]} (->> (tree-seq-depth sequential? seq xs)
@@ -105,7 +107,8 @@
     (-> xs
         (assoc-in path (let [l (long (Math/floor (/ node 2)))
                              r (long (Math/ceil (/ node 2)))]
-                         [l r])))))
+                         [l r])))
+    xs))
 
 
 (defn reduce+
@@ -128,7 +131,6 @@
 
 (defn add [l r]
   (loop [result [l r]]
-    (println result)
     (let [exploded (explode result)]
       (if (not= exploded result)
         (recur exploded)
@@ -137,9 +139,21 @@
             (recur twain)
             result))))))
 
-(defn part1 []
-  (let [data (input)]
-    data))
+(defn magnitude [xs]
+  (let [[l r] xs]
+    (+ (* 3 (cond-> l (vector? l) magnitude))
+       (* 2 (cond-> r (vector? r) magnitude)))))
+
+(defn part1 [& data]
+  (magnitude
+    (reduce add data)))
+
+(defn part2 [& data]
+  (->> (for [l data
+             r data
+             :when (not= l r)]
+         (magnitude (add l r)))
+       (sort)))
 
 (comment
   (= (explode [[[[[9, 8], 1], 2], 3], 4])
