@@ -1,7 +1,7 @@
 (ns aoc.dec24
   (:require [aoc.utils :as utils]
             [clojure.string :as str])
-  (:import (clojure.lang IFn)))
+  (:import (clojure.lang IFn ArityException)))
 
 (defn parse-arg [arg]
   (try
@@ -22,7 +22,7 @@
 
 (defmulti alu (fn [state op _ _] op))
 
-(defmethod alu :inp [{:keys [inputs] :as state} _ v]
+(defmethod alu :inp [{:keys [inputs] :as state} _ v _]
   (let [[input-val & more] inputs]
     (-> state
         (assoc v input-val)
@@ -58,19 +58,31 @@
 (defn input->int [ds]
   (Long/parseLong (apply str ds)))
 
-(defn run-program [inputs]
-  (let [data (input)]
-    (reduce
-      #(apply alu %1 %2)
-      (starting-state inputs)
-      data)))
+(defn run-program [program cache inputs]
+  (println program inputs)
+  (reduce
+    (fn [{:keys [inputs z] :as state} snippet]
+      ;(if-let [z-result (get @cache [(first inputs) z])]
+      ;  (merge state {:inputs (drop 1 inputs)
+      ;                :z      z-result})
+      (let [{snippet-z :z
+             :as       next-state} (reduce
+                                     #(apply alu %1 %2)
+                                     state
+                                     snippet)]
+        ;(swap! cache assoc [(first inputs) z] snippet-z)
+        next-state))
+    (starting-state inputs)
+    program))
 
-(defn iteration [[idx input]]
-  (let [result (run-program input)]
-    (when (or (zero? (mod idx 10000))
-              (< (get result :z) 11700000)
-              (= (mod (input->int input) (get result :z)) 0))
-      (println input result (/ (input->int input) (double (get result :z)))))
+(defn iteration [program cache [idx input]]
+  (let [result (run-program program cache input)]
+    (when (or (zero? (mod idx 100000)))
+      ;(< (get result :z) 11700000)
+      ;(= (mod (input->int input) (get result :z)) 0))
+      (println input result))
+    (if (zero? (:z result))
+      (println input))
     result))
 
 (defn disassemble [program]
@@ -81,6 +93,77 @@
           (for [[op dest arg] instr]
             (str (name dest) " = " (name dest) " " (name op) " " arg))])
        (into {})))
+
+(defn optimize [program]
+  (vec (for [[inp instr] (->> program
+                              (partition-by #(= (first %) :inp))
+                              (partition 2))
+             :let [[op v] (first inp)
+                   _ (println inp)]]
+         (cons #(alu % op v v)
+               (for [[op arg1 arg2] instr]
+                 #(alu % op arg1 arg2))))))
+
+(defn part1 []
+  (let [program (optimize (input))
+        cache (atom {})]
+    (->> (range 99999999999999 11111111111111 -1)
+         (map int->input)
+         (filter #(every? pos? %))
+         (map vector (range))
+         (pmap (partial iteration program cache))
+         (filter #(zero? (:z %)))
+         (first))))
+
+(defn starting-state-recursive [z inputs]
+  {:w 0 :x 0 :y 0 :z z :inputs inputs})
+
+(defn run-program-recursive [state program]
+  (println state program)
+  (reduce
+    (fn [state f]
+      (f state))
+    state
+    program))
+
+(defn step [cache [z inputs] snippets]
+  (when (and (= (count inputs) 14)
+             (= (mod (input->int inputs) 1000000) 111111))
+    (println [z inputs] snippets))
+  (let [snippet (first snippets)
+        parallel? (= (count inputs) 6)]
+    (if (= (count inputs) 14)
+      (let [cached (get @cache [z (peek inputs)])
+            {z-next :z} (if cached
+                          cached
+                          (run-program-recursive (starting-state-recursive z inputs) snippet))
+            _ (if-not cached
+                (swap! cache assoc [z (peek inputs)] {:z z-next}))]
+        [(= z-next 0) (input->int inputs)])
+      (->> (for [digit (range 9 0 -1)
+                 :let [next-inputs (conj inputs digit)
+                       cached (get @cache [z digit])
+                       {z-next :z} (if cached
+                                     cached
+                                     (run-program-recursive (starting-state-recursive z next-inputs) snippet))
+                       _ (if-not cached
+                           (swap! cache assoc [z digit] {:z z-next}))]]
+             (if parallel?
+               (future (step cache [z-next next-inputs] (rest snippets)))
+               (step cache [z-next next-inputs] (rest snippets))))
+           (reduce
+             (fn [[success? result] child]
+               (if success?
+                 [success? result]
+                 (if parallel?
+                   (deref child)
+                   child)))
+             [false nil])))))
+
+(defn part1-recursive []
+  (let [program (optimize (input))]
+    (step (atom {}) [0 []] program)))
+
 
 ; clear x
 ; x = x + z
@@ -135,18 +218,9 @@
              (aset state 3 (unchecked-multiply-int (aget state 3) 26))
              ;(println "z *= 26" (into [] state))
              (aset state 3 (unchecked-add-int (aget state 0) ay)))))
-             ;(println "z += w + ay" (into [] state)))))
-           ;(println (into [] state))))
+       ;(println "z += w + ay" (into [] state)))))
+       ;(println (into [] state))))
        (into-array IFn)))
-
-(defn part1 []
-  (->> (range 98888888888888 11111111111111 -1)
-       (map int->input)
-       (filter #(every? pos? %))
-       (map vector (range))
-       (pmap iteration)
-       (filter #(zero? (:z %)))
-       (first)))
 
 (defn part1-fast []
   (let [fns (generate-machine)
@@ -174,13 +248,13 @@
                (aset state 1 0)
                (aset state 2 0)
                ((aget fns i) state))
-               ;(println (into [] state)))
+             ;(println (into [] state)))
              (when (zero? (mod (aget cnt 0) 10000))
                (println (into [] input)
                         (into [] state)))
              (get state 3)))
          (filter #(= % 0)))))
-         ;(first))))
+;(first))))
 
 
 
